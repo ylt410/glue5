@@ -67,6 +67,8 @@ pub fn run() -> Result<()> {
     // system's resize loop, had frames drawn for one size shown at another.
     sdl3::hint::set("SDL_VIDEO_METAL_AUTO_RESIZE_DRAWABLE", "0");
     let user_dir = paths::user_dir()?;
+    #[cfg(target_os = "ios")]
+    paths::prepare_ios_documents();
     let mut settings = Settings::load(&user_dir);
     if settings.online_name.trim().is_empty() {
         settings.online_name = settings::default_online_name();
