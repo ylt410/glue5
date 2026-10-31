@@ -30,6 +30,38 @@ pub fn user_dir() -> Result<PathBuf> {
     sdl3::filesystem::get_pref_path("", "glue5").map_err(|e| anyhow::anyhow!("no user directory: {e}"))
 }
 
+/// Make the app's shared Documents directory appear in the iOS Files app.
+/// The readme stays outside game/: the game folder must contain only game data.
+#[cfg(target_os = "ios")]
+pub fn prepare_ios_documents() {
+    use std::io::Write;
+
+    let Ok(documents) = sdl3::filesystem::get_user_folder(sdl3::filesystem::Folder::DOCUMENTS) else {
+        log::warn!("iOS Documents folder unavailable");
+        return;
+    };
+    if let Err(err) = std::fs::create_dir_all(documents.join("game")) {
+        log::warn!("iOS Documents/game: {err}");
+        return;
+    }
+
+    let readme = documents.join("Glue 5 - Game Files.txt");
+    match std::fs::OpenOptions::new().write(true).create_new(true).open(&readme) {
+        Ok(mut file) => {
+            let guide = format!(
+                "Glue 5 game files\n\nPut data/ and b/{}/shaders/ inside the game/ folder beside this file.\nThe game.wasm is already bundled in the app.\n\n游戏文件说明：请把 data/ 和 b/{}/shaders/ 放在旁边的 game/ 文件夹内。\ngame.wasm 已包含在 Glue 5 应用内，无需再次导入。\n",
+                glue5_runtime::GAME_BUILD,
+                glue5_runtime::GAME_BUILD
+            );
+            if let Err(err) = file.write_all(guide.as_bytes()) {
+                log::warn!("iOS Documents readme: {err}");
+            }
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(err) => log::warn!("iOS Documents readme: {err}"),
+    }
+}
+
 /// Where the game is looked for when nothing says otherwise.
 pub fn default_game_dirs() -> Vec<PathBuf> {
     if TV {
